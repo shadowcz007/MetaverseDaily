@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        fetch('data/index_extract_html.json').then(res => res.json()).then(res => {
+            let div = document.createElement('div');
+            div.style = `    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}`;
+            div.innerHTML = Array.from(res, r => `<a href="${r}" style="margin: 24px;
+    font-size: 20px;">${r.replace('_extract.html','').replace(/.*\//,'')}</a>`).join("")
+            document.body.appendChild(div)
+        })
+    </script>
+</body>
+
+</html>
