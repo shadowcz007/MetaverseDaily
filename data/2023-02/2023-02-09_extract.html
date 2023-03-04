@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2023-02-09</title>
+</head>
+<body></body>
+
+<style>
+    .for_ai {
+        font-size: 18px;
+        font-weight: 800;
+        color: cornflowerblue;
+        margin: 32px 0;
+    }
+    
+    details {
+        background: #ededed;
+    }
+</style>
+<script>
+let companies = {};
+
+let cards = [...document.querySelectorAll('card')]
+    let n = 10 + eval(Array.from(document.querySelectorAll('.score'), s => ~~s.getAttribute('score')).join('+')) / document.querySelectorAll('.score').length;
+    console.log(n)
+
+    if (localStorage.getItem(document.title)) {
+        n = parseInt(localStorage.getItem(document.title))
+    };
+    localStorage.setItem(document.title, n);
+    let inputN = document.createElement('input');
+    inputN.type = 'number';
+    inputN.value = n;
+    inputN.addEventListener('change', e => {
+        localStorage.setItem(document.title, parseInt(inputN.value));
+        window.location.reload();
+    });
+
+    document.body.insertAdjacentElement('afterbegin', inputN);
+
+
+    for (let card of cards) {
+        Array.from(card.querySelectorAll('.score'), d => {
+            if (d.getAttribute('score') <= n) d.parentElement.remove()
+        });
+
+        if (card.querySelectorAll('details').length == 0) card.remove()
+    }
+    cards = [...document.querySelectorAll('card')];
+    console.log(cards.length)
+
+    let cardsNum = document.createElement('div');
+    cardsNum.innerText = cards.length;
+    document.body.insertAdjacentElement('afterbegin', cardsNum);
+
+
+    for (let card of cards) {
+        card.querySelector('.for_ai').innerText = card.querySelector('.for_ai').innerHTML.split('<br>')[0]
+         // 提取公司
+        Array.from(card.querySelectorAll('details'), details => Array.from(details.innerHTML.split('<br>'), d => {
+                if (d.match('#公司/组织/机构')) {
+                    if (!companies[d.split('#公司/组织/机构:')[1]]) companies[d.split('#公司/组织/机构:')[1]] = 0;
+                    return companies[d.split('#公司/组织/机构:')[1]]++;
+                }
+            }))
+            // console.log(Object.keys(companies))
+       
+            // console.log(card.querySelector('.for_ai').innerHTML.split('<br>'))
+        Array.from(card.children, (c, i) => {
+            if (i > 0) {
+
+                c.querySelector('summary').children[0].setAttribute('title', c.querySelector('summary').children[0].children[0].innerText)
+                c.querySelector('a').href = c.querySelector('a').href + '?knowledgeTags=' + card.querySelector('.for_ai').innerText + '&knowledgeReply=' + c.querySelector('summary').children[0].children[0].innerText;
+            
+                c.querySelector('summary').children[0].children[0].innerHTML = `
+                <div contenteditable>${c.querySelector('summary').children[0].children[0].innerText} </div>
+                <button class='run' style="cursor: pointer;">AIGC</button> `;
+                
+                let btn = document.createElement('button');
+                    btn.innerText = 'delete'
+                    btn.addEventListener('click', e => {
+                        c.remove()
+                    });
+                c.querySelector('summary').children[0].children[0].appendChild(btn);
+
+                c.querySelector('.run').addEventListener('click', e => {
+                    console.log(e.target.parentElement.parentElement.getAttribute('title'), e.target.previousElementSibling.innerText)
+                    createImage(div, e.target.previousElementSibling.innerText, e.target.parentElement.parentElement.getAttribute('title'), c.querySelector('a').href);
+                })
+                
+            }
+        })
+
+        let btn = document.createElement('button');
+            btn.innerText = 'delete'
+            btn.addEventListener('click', e => {
+                card.remove()
+            });
+        card.appendChild(btn);
+
+    };
+
+     // 提取公司
+    companies = Array.from(Array.from(Object.keys(companies), key => {
+        return {
+            count: companies[key],
+            key: key
+        }
+    }).sort((a, b) => b.count - a.count), ks => ks.key)
+    document.body.insertAdjacentHTML('afterbegin', `<div style="margin:14px">公司:<br>${companies.join('<br>')}<br></div>`)
+    
+    
+    let div = document.createElement('div');
+    // div.setAttribute('contenteditable', true)
+    div.style = `position: fixed;
+    top: 0;outline:1px solid gray;
+    right: 0; display: flex;flex-wrap: wrap;max-height: 100vh;
+    overflow: scroll; width:40%;`
+    document.body.appendChild(div);
+
+    function create(t) {
+        return fetch("http://127.0.0.1:7860/run/infer_text2img_for_auto", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    data: [
+                        t,
+                    ]
+                })
+            })
+            .then(r => r.json())
+    }
+    async function createImage(div, questions, title, urls) {
+        let im = document.createElement('div')
+        let qrcode = new QRCode(im);
+        qrcode.clear();
+
+        // 导流到微信公众号 mixlab http://weixin.qq.com/r/Skzbw9PEv47ArZeg9xlY
+        // shadow实验室 http://weixin.qq.com/r/IUNpcWnE2zSkrS0S9xYz
+        qrcode.makeCode('http://weixin.qq.com/r/IUNpcWnE2zSkrS0S9xYz');
+
+        const c = (i, imgUrl, title, qrUrl) => `<div><section style="border: 1px solid #dedede;background:#eee" id="s${i}"><div style="width:300px;margin: 24px;" >
+            <img src="${imgUrl}" style="width:300px"/>
+            <p style="display: flex;
+    height: 56px;font-size: 15px;
+    font-weight: 800;
+    justify-content: space-around;" contenteditable >${title}<br> <img src="${qrUrl}" /></p><p style="font-size: 12px;
+    padding-top: 6px;" contenteditable class="commit">评论：</p>
+    <p style="font-size: 12px;font-weight:300" contenteditable>${urls}</p>
+            </div></section> <button onclick='getImage("s${i}")'>OK</button></div>`
+
+        r = (await create(questions)).data[0];
+        div.innerHTML = c(0, r, title, im.children[1].src);
+        for (let index = 0; index < 20; index++) {
+            let r1 = (await create(questions)).data[0];
+            div.innerHTML += c(index, r1, title, im.children[1].src);
+        }
+
+    }
+    window.results = {};
+    try {
+        window.results = JSON.parse(localStorage.getItem('_res')) || {}
+    } catch (error) {
+        window.results = {};
+    }
+
+    function getImage(id) {
+        let t = div.querySelector('#' + id).querySelector('.commit').innerText
+        div.querySelector('#' + id).querySelector('.commit').innerHTML = t;
+        window.results[t] = t;
+        localStorage.setItem('_res', JSON.stringify(window.results))
+
+        html2canvas(div.querySelector('#' + id), {
+            backgroundColor: '#ffffff',
+            scale: window.devicePixelRatio * 2
+        }).then(function(canvas) {
+            div.innerHTML = ''
+            div.appendChild(canvas);
+        });
+    }
+
+    let b = document.createElement('button')
+    b.style = `top: 0px;
+    right: 0px;
+    position: fixed;
+    z-index: 999;
+    width: 44px;
+    height: 44px;
+    background: red;`
+    b.innerText = '导出'
+    document.body.appendChild(b)
+
+    b.addEventListener('click', e => {
+        let cards = document.querySelectorAll('card');
+        let res = '';
+        for (const card of cards) {
+            let tag = card.querySelector('h4').innerText,
+                texts = Array.from(card.children, c => {
+                    if (c.querySelector('summary')) {
+
+                        let title = c.querySelector('summary').children[0].title;
+                        let url = c.querySelector('a').href;
+                        return `· [${title}](${url})`
+                    }
+
+                }).filter(f => f).join(' \n\n ');
+            res += '`' + tag + '` \n\n ' + texts + '\n\n';
+        }
+
+        copyToClickBoard(res)
+    })
+
+    function copyToClickBoard(content) {
+
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                console.log("Text copied to clipboard...")
+                b.style.display = 'flex';
+                Array.from(document.querySelectorAll('button'), r => r.style.display = 'inline-block');
+            })
+            .catch(err => {
+                console.log('Something went wrong', err);
+                b.style.display = 'flex';
+                Array.from(document.querySelectorAll('button'), r => r.style.display = 'inline-block');
+            })
+
+    }
+
+    let b2 = document.createElement('button')
+    b2.style = `top:88px;
+    right: 0px;
+    position: fixed;
+    z-index: 999;
+    width: 44px;
+    height: 44px;
+    background: red;`
+    b2.innerText = '洞察'
+    document.body.appendChild(b2)
+
+    b2.addEventListener('click', e => {
+        copyRes()
+    })
+
+    function copyRes() {
+        navigator.clipboard.writeText(Object.keys(window.results).join('\n'))
+            .then(() => {
+                console.log("Text copied to clipboard...")
+
+            })
+            .catch(err => {
+                console.log('Something went wrong', err);
+
+            })
+    }
+</script>
+<script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+</html>
